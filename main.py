@@ -251,8 +251,7 @@ class TelegramBot:
 
 async def main():
     # Get token from environment variable or configuration
-    token = "7667500548:AAHHC_-qbELiDWoFjHKYnNBT2UwWtt26DxY"
-
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
     if not token:
         raise ValueError("Telegram bot token is missing in configuration")
         
