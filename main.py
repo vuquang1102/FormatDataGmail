@@ -117,7 +117,7 @@ class TelegramBot:
                     # Create response filename
                     clean_source = re.sub(r'[^\w\-_]', '_', source)
                     original_name = os.path.splitext(pending_file['original_file_name'])[0]
-                    response_filename = f"{clean_source}_{original_name}.txt"
+                    response_filename = f"{clean_source}.txt"
                     
                     # Send the processed file
                     with open(processed_path, 'rb') as file_to_send:
