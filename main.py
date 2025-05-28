@@ -62,14 +62,21 @@ class TelegramBot:
                 "original_file_name": doc.file_name
             }
             
-            lines = 0
-            if (pending_sources[chat_id]["file_path"].lower().endswith('.xlsx')):
-                lines = await self.process_excel_file(temp_path, "")
+            lines_count = 0
+            file_path = pending_sources[chat_id]["file_path"]
 
-            elif (pending_sources[chat_id]["file_path"].lower().endswith('.txt')):
-                lines =  await self.process_txt_file(temp_path, "")
-
-            await message.reply_text("📥 Đã nhận file có {lines} gmail:\n Vui lòng điền Source:")
+            try:
+                if file_path.lower().endswith('.xlsx'):
+                    lines = await self.process_excel_file(file_path, "")
+                    lines_count = len(lines)
+                elif file_path.lower().endswith('.txt'):
+                    lines = await self.process_txt_file(file_path, "")
+                    lines_count = len(lines)
+                
+                await message.reply_text(f"📥 Đã nhận file có {lines_count} gmail.\nVui lòng điền Source:")
+                
+            except Exception as e:
+                await message.reply_text(f"⚠️ Lỗi khi đếm số lượng gmail: {str(e)}")
             
         except Exception as e:
             await message.reply_text(f"⚠️ Error: {str(e)}")
@@ -89,7 +96,7 @@ class TelegramBot:
             source = text.strip()
             
             try:
-                await message.reply_text("⏳ Processing your file...")
+                await message.reply_text("⏳ Đang xử lý...")
                 
                 # Process the file based on type
                 if pending_file["file_path"].lower().endswith('.xlsx'):
@@ -98,7 +105,7 @@ class TelegramBot:
                     processed_lines = await self.process_txt_file(pending_file["file_path"], source)
                 
                 if not processed_lines:
-                    await message.reply_text("❌ No valid accounts found in the file.")
+                    await message.reply_text("❌ Không thấy tài khoản Gmail nào trong file.")
                     return
                 
                 try:
@@ -116,7 +123,7 @@ class TelegramBot:
                     with open(processed_path, 'rb') as file_to_send:
                         await message.reply_document(
                             document=InputFile(file_to_send, filename=response_filename),
-                            caption=f"✅ Processed {len(processed_lines)} accounts\nSource: {source}"
+                            caption=f"✅ Đã xử lý {len(processed_lines)} Gmail\nSource: {source}"
                         )
                 
                 except Exception as e:
