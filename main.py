@@ -45,24 +45,30 @@ class TelegramBot:
         file_name = doc.file_name.lower()
         
         if not (file_name.endswith('.txt') or file_name.endswith('.xlsx')):
-            await message.reply_text("❌ Vui lòng gửi file TXT hoặc Excel (.xlsx).")
+            await message.reply_text("❌ Please send TXT or Excel (.xlsx) file.")
             return
         
-        # Download the file
-        file = await doc.get_file()
-        temp_dir = os.path.join(tempfile.gettempdir(), "TelegramBotTemp")
-        os.makedirs(temp_dir, exist_ok=True)
-        temp_path = os.path.join(temp_dir, f"{uuid.uuid4()}_{doc.file_name}")
-        
-        await file.download_to_drive(temp_path)
-        
-        # Store pending file
-        pending_sources[chat_id] = {
-            "file_path": temp_path,
-            "original_file_name": doc.file_name
-        }
-        
-        await message.reply_text("📥 Đã nhận file. Vui lòng nhập source bạn muốn gán cho mỗi dòng:")
+        try:
+            # Download the file
+            file = await doc.get_file()
+            temp_dir = os.path.join(tempfile.gettempdir(), "TelegramBotTemp")
+            os.makedirs(temp_dir, exist_ok=True)
+            temp_path = os.path.join(temp_dir, f"{uuid.uuid4()}_{doc.file_name}")
+            
+            await file.download_to_drive(temp_path)
+            
+            # Store pending file
+            pending_sources[chat_id] = {
+                "file_path": temp_path,
+                "original_file_name": doc.file_name
+            }
+            
+            await message.reply_text("📥 File received. Please enter the source you want to assign to each line:")
+            
+        except Exception as e:
+            await message.reply_text(f"⚠️ Error processing file: {str(e)}")
+            if 'temp_path' in locals() and os.path.exists(temp_path):
+                os.remove(temp_path)
 
     async def handle_text(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not update.message or not update.message.text:
@@ -77,30 +83,33 @@ class TelegramBot:
         # Check if user is responding to a pending file
         if chat_id in pending_sources:
             pending_file = pending_sources.pop(chat_id)
-            source = text
+            source = text.strip()
             
-            if pending_file["file_path"].lower().endswith('.xlsx'):
-                processed_path = await self.process_excel_file_with_source(pending_file["file_path"], source)
-            else:
-                processed_path = await self.process_txt_file_with_source(pending_file["file_path"], source)
-            
-            # Read the processed file
-            with open(processed_path, 'r', encoding='utf-8') as f:
-                lines_processed = f.readlines()
-                total = len(lines_processed)
+            try:
+                if pending_file["file_path"].lower().endswith('.xlsx'):
+                    processed_path = await self.process_excel_file_with_source(pending_file["file_path"], source)
+                else:
+                    processed_path = await self.process_txt_file_with_source(pending_file["file_path"], source)
                 
-            clean_source = source.replace(" ", "_").replace("|", "_").replace(":", "_")
-            file_name = f"SOURCE_{clean_source}_{total}.txt"
-            
-            await message.reply_document(
-                document=InputFile(processed_path, filename=file_name),
-                caption=f"✅ File đã xử lý với tổng {total} tài khoản Gmail và Source: {source}"
-            )
-            
-            # Clean up
-            os.remove(pending_file["file_path"])
-            os.remove(processed_path)
-            
+                # Create a proper filename for the response
+                clean_source = re.sub(r'[^\w\-_]', '_', source)
+                response_filename = f"processed_{clean_source}_{os.path.basename(pending_file['original_file_name'])}"
+                
+                # Send the processed file
+                await message.reply_document(
+                    document=open(processed_path, 'rb'),
+                    filename=response_filename,
+                    caption=f"✅ Processed file with source: {source}"
+                )
+                
+            except Exception as e:
+                await message.reply_text(f"⚠️ Error processing file: {str(e)}")
+            finally:
+                # Clean up temporary files
+                for path in [pending_file["file_path"], processed_path]:
+                    if path and os.path.exists(path):
+                        os.remove(path)
+                
         # Check if user is responding to pending text lines
         elif chat_id in pending_text_lines:
             raw_lines = pending_text_lines.pop(chat_id)
@@ -129,7 +138,7 @@ class TelegramBot:
     async def process_txt_file_with_source(self, path: str, source: str) -> str:
         with open(path, 'r', encoding='utf-8') as f:
             lines = f.readlines()
-            
+        
         formatted = []
         for line in lines:
             line = line.strip()
@@ -141,26 +150,23 @@ class TelegramBot:
             
             if parts and "@gmail.com" in parts[0].lower():
                 if len(parts) == 1:
-                    # Only email
                     result = f"{parts[0]}|aass1122|SOURCE_{source}_SOURCE"
                 elif len(parts) == 2:
-                    # Email + password
                     result = f"{parts[0]}|{parts[1]}|SOURCE_{source}_SOURCE"
                 else:
-                    # Email + password + recovery or more
                     result = f"{parts[0]}|{parts[1]}|{parts[2]}|SOURCE_{source}_SOURCE"
                     
                 formatted.append(result)
-                
-        out_dir = os.path.dirname(path)
-        out_filename = "processed_" + os.path.basename(path)
-        out_path = os.path.join(out_dir, out_filename)
+        
+        # Create a new file with processed content
+        processed_filename = f"processed_{os.path.basename(path)}"
+        out_path = os.path.join(os.path.dirname(path), processed_filename)
         
         with open(out_path, 'w', encoding='utf-8') as f:
             f.write('\n'.join(formatted))
             
         return out_path
-
+    
     async def process_excel_file_with_source(self, path: str, source: str) -> str:
         out_path = os.path.join(tempfile.gettempdir(), f"processed_{uuid.uuid4()}.txt")
         lines = []
