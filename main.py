@@ -62,7 +62,14 @@ class TelegramBot:
                 "original_file_name": doc.file_name
             }
             
-            await message.reply_text("📥 File received. Please enter the source you want to assign to each line:")
+            lines = 0
+            if (pending_sources[chat_id]["file_path"].lower().endswith('.xlsx')):
+                lines = await self.process_excel_file(temp_path, "")
+
+            elif (pending_sources[chat_id]["file_path"].lower().endswith('.txt')):
+                lines =  await self.process_txt_file(temp_path, "")
+
+            await message.reply_text("📥 Đã nhận file có {lines} gmail:\n Vui lòng điền Source:")
             
         except Exception as e:
             await message.reply_text(f"⚠️ Error: {str(e)}")
@@ -87,7 +94,7 @@ class TelegramBot:
                 # Process the file based on type
                 if pending_file["file_path"].lower().endswith('.xlsx'):
                     processed_lines = await self.process_excel_file(pending_file["file_path"], source)
-                else:
+                elif (pending_file["file_path"].lower().endswith('.txt')):
                     processed_lines = await self.process_txt_file(pending_file["file_path"], source)
                 
                 if not processed_lines:
