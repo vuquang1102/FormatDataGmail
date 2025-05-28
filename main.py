@@ -94,33 +94,44 @@ class TelegramBot:
                     await message.reply_text("❌ No valid accounts found in the file.")
                     return
                 
-             # Create output TXT file
-            processed_path = os.path.join(tempfile.gettempdir(), f"processed_{uuid.uuid4()}.txt")
-            with open(processed_path, 'w', encoding='utf-8') as f:
-                f.write('\n'.join(processed_lines))
-
-            # Create response filename
-            clean_source = re.sub(r'[^\w\-_]', '_', source)
-            original_name = os.path.splitext(pending_file['original_file_name'])[0]
-            response_filename = f"{clean_source}_{original_name}.txt"
-
-            # Send the processed file by opening it in binary mode
-            try:
-                with open(processed_path, 'rb') as file_to_send:
-                    await message.reply_document(
-                        document=file_to_send,
-                        filename=response_filename,
-                        caption=f"✅ Processed {len(processed_lines)} accounts\nSource: {source}"
-                    )
+                try:
+                    # Create output TXT file
+                    processed_path = os.path.join(tempfile.gettempdir(), f"processed_{uuid.uuid4()}.txt")
+                    with open(processed_path, 'w', encoding='utf-8') as f:
+                        f.write('\n'.join(processed_lines))
+                    
+                    # Create response filename
+                    clean_source = re.sub(r'[^\w\-_]', '_', source)
+                    original_name = os.path.splitext(pending_file['original_file_name'])[0]
+                    response_filename = f"{clean_source}_{original_name}.txt"
+                    
+                    # Send the processed file
+                    with open(processed_path, 'rb') as file_to_send:
+                        await message.reply_document(
+                            document=InputFile(file_to_send, filename=response_filename),
+                            caption=f"✅ Processed {len(processed_lines)} accounts\nSource: {source}"
+                        )
+                
+                except Exception as e:
+                    await message.reply_text(f"⚠️ Error while creating/sending file: {str(e)}")
+                
+                finally:
+                    # Clean up files
+                    for path in [pending_file["file_path"], processed_path]:
+                        if path and os.path.exists(path):
+                            try:
+                                os.remove(path)
+                            except:
+                                pass
+            
             except Exception as e:
-                await message.reply_text(f"⚠️ Failed to send file: {str(e)}")
-            finally:
-                # Clean up the temporary file
-                if os.path.exists(processed_path):
+                await message.reply_text(f"⚠️ Processing error: {str(e)}")
+                if 'pending_file' in locals() and os.path.exists(pending_file["file_path"]):
                     try:
-                        os.remove(processed_path)
+                        os.remove(pending_file["file_path"])
                     except:
                         pass
+
     async def process_txt_file(self, path: str, source: str) -> List[str]:
         formatted = []
         with open(path, 'r', encoding='utf-8') as f:
