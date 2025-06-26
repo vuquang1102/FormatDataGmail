@@ -8,7 +8,7 @@ import openpyxl
 from telegram import Update, InputFile, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 
-AVAILABLE_SOURCES = ["RANA", "SHA", "VINA"]
+AVAILABLE_SOURCES = ["RANA", "SHA", "KAR", "BL", "CUSTOM"]
 
 pending_sources: Dict[int, Dict] = {}
 source_file_counter: Dict[str, int] = {}
@@ -103,9 +103,9 @@ class TelegramBot:
             preview_lines = await self.process_txt_file(pending_file["file_path"], "")
         
         gmail_count = len(preview_lines)
-        time_str = datetime.utcnow().strftime('%H%M')
+        time_str = datetime.utcnow().strftime('%H_%M_%S')
 
-        full_source = f"{source_input}_{today}_{file_num}_{gmail_count}_{time_str}"
+        full_source = f"{source_input}_{today}_{file_num}_{gmail_count}-gmails_{time_str}"
         await query.edit_message_text(f"⏳ Đang xử lý với source: {full_source}")
 
         if pending_file["file_path"].lower().endswith('.xlsx'):
