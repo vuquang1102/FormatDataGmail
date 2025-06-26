@@ -41,11 +41,11 @@ class TelegramBot:
         doc = message.document
         
         if not (doc.file_name.lower().endswith('.txt') or doc.file_name.lower().endswith('.xlsx')):
-            await message.reply_text("❌ Please send TXT or Excel (.xlsx) file.")
+            await message.reply_text("❌ Vui lòng gửi file TXT hoặc Excel (.xlsx).")
             return
 
         if doc.file_size > 10 * 1024 * 1024:
-            await message.reply_text("❌ File too large. Max size is 10MB.")
+            await message.reply_text("❌ File quá lớn. Dung lượng tối đa là 10MB.")
             return
         
         try:
@@ -62,18 +62,18 @@ class TelegramBot:
             }
 
             keyboard = [
-                [InlineKeyboardButton(source, callback_data=f"source_{source}")]
-                for source in AVAILABLE_SOURCES
+                [InlineKeyboardButton(f"🚀 {source}", callback_data=f"source_{source}") for source in AVAILABLE_SOURCES]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
 
             await message.reply_text(
-                "📥 File received. Please choose a source:",
-                reply_markup=reply_markup
+                "📥 Đã nhận file. Vui lòng chọn *source* bằng cách nhấn nút bên dưới:",
+                reply_markup=reply_markup,
+                parse_mode='Markdown'
             )
-
+            
         except Exception as e:
-            await message.reply_text(f"⚠️ Error: {str(e)}")
+            await message.reply_text(f"⚠️ Lỗi: {str(e)}")
             if 'temp_path' in locals() and os.path.exists(temp_path):
                 os.remove(temp_path)
 
@@ -90,7 +90,7 @@ class TelegramBot:
             current_day = today
 
         if chat_id not in pending_sources:
-            await query.edit_message_text("❌ No pending file found.")
+            await query.edit_message_text("❌ Không tìm thấy file chờ xử lý.")
             return
 
         pending_file = pending_sources.pop(chat_id)
@@ -106,7 +106,7 @@ class TelegramBot:
         time_str = datetime.utcnow().strftime('%H%M')
 
         full_source = f"{source_input}_{today}_{file_num}_{gmail_count}_{time_str}"
-        await query.edit_message_text(f"⏳ Processing with source: {full_source}")
+        await query.edit_message_text(f"⏳ Đang xử lý với source: {full_source}")
 
         if pending_file["file_path"].lower().endswith('.xlsx'):
             processed_lines = await self.process_excel_file(pending_file["file_path"], full_source)
@@ -114,7 +114,7 @@ class TelegramBot:
             processed_lines = await self.process_txt_file(pending_file["file_path"], full_source)
 
         if not processed_lines:
-            await query.message.reply_text("❌ No Gmail accounts found in file.")
+            await query.message.reply_text("❌ Không tìm thấy tài khoản Gmail nào trong file.")
             return
 
         processed_path = os.path.join(tempfile.gettempdir(), f"processed_{uuid.uuid4()}.txt")
@@ -124,7 +124,7 @@ class TelegramBot:
         with open(processed_path, 'rb') as file_to_send:
             await query.message.reply_document(
                 document=InputFile(file_to_send, filename=f"{full_source}.txt"),
-                caption=f"✅ Processed {gmail_count} Gmail accounts\nSource: {full_source}"
+                caption=f"✅ Đã xử lý {gmail_count} tài khoản Gmail\nSource: {full_source}"
             )
 
         os.remove(pending_file["file_path"])
@@ -149,11 +149,36 @@ class TelegramBot:
                     formatted.append(result)
         return formatted
 
+    # async def process_excel_file(self, path: str, source: str) -> List[str]:
+    #     lines = []
+    #     wb = openpyxl.load_workbook(path)
+    #     ws = wb.active
+    #     for row in ws.iter_rows(min_row=2, values_only=True):
+    #         emails = []
+    #         non_emails = []
+    #         for cell in row[:5]:
+    #             if cell:
+    #                 text = str(cell).strip()
+    #                 if '@' in text and '.' in text:
+    #                     emails.append(text)
+    #                 else:
+    #                     non_emails.append(text)
+    #         if emails:
+    #             email = emails[0]
+    #             recovery = emails[1] if len(emails) > 1 else ''
+    #             password = non_emails[0] if non_emails else 'aass1122'
+    #             line = f"{email}|{password}"
+    #             if recovery:
+    #                 line += f"|{recovery}"
+    #             line += f"|SOURCE_{source}_SOURCE"
+    #             lines.append(line)
+    #     return lines
     async def process_excel_file(self, path: str, source: str) -> List[str]:
         lines = []
         wb = openpyxl.load_workbook(path)
         ws = wb.active
-        for row in ws.iter_rows(min_row=2, values_only=True):
+
+        for row in ws.iter_rows(values_only=True):  # duyệt tất cả các dòng
             emails = []
             non_emails = []
             for cell in row[:5]:
@@ -174,10 +199,11 @@ class TelegramBot:
                 lines.append(line)
         return lines
 
+
 async def main():
     token = os.getenv("TELEGRAM_BOT_TOKEN")
     if not token:
-        raise ValueError("Missing TELEGRAM_BOT_TOKEN environment variable")
+        raise ValueError("Thiếu biến môi trường TELEGRAM_BOT_TOKEN")
     bot = TelegramBot(token)
     await bot.start()
     while True:
@@ -190,4 +216,4 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print("Bot stopped")
+        print("Bot đã dừng.")
