@@ -4,6 +4,7 @@ import tempfile
 import uuid
 from typing import Dict, List
 from datetime import datetime
+from datetime import timedelta
 import openpyxl
 from telegram import Update, InputFile, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, MessageHandler, CallbackQueryHandler, filters, ContextTypes
@@ -62,7 +63,7 @@ class TelegramBot:
             }
 
             keyboard = [
-                [InlineKeyboardButton(f"🚀 {source}", callback_data=f"source_{source}") for source in AVAILABLE_SOURCES]
+                [InlineKeyboardButton(f"{source}", callback_data=f"source_{source}") for source in AVAILABLE_SOURCES]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -103,7 +104,7 @@ class TelegramBot:
             preview_lines = await self.process_txt_file(pending_file["file_path"], "")
         
         gmail_count = len(preview_lines)
-        time_str = datetime.utcnow().strftime('%H_%M_%S')
+        time_str = (datetime.utcnow() + timedelta(hours=7)).strftime('%H%M%S')
 
         full_source = f"{source_input}_{today}_{file_num}_{gmail_count}-gmails_{time_str}"
         await query.edit_message_text(f"⏳ Đang xử lý với source: {full_source}")
