@@ -13,7 +13,7 @@ AVAILABLE_SOURCES = ["RANA", "SHA", "KAR", "BL", "CUSTOM"]
 
 pending_sources: Dict[int, Dict] = {}
 source_file_counter: Dict[str, int] = {}
-current_day = datetime.utcnow().strftime('%d%m')
+current_day = (datetime.utcnow() + timedelta(hours=7)).strftime('%d%m')
 
 class TelegramBot:
     def __init__(self, token: str):
@@ -85,7 +85,7 @@ class TelegramBot:
         source_input = query.data.replace("source_", "").upper()
 
         global current_day
-        today = datetime.utcnow().strftime('%d%m')
+        today = (datetime.utcnow() + timedelta(hours=7)).strftime('%d%m')
         if today != current_day:
             source_file_counter.clear()
             current_day = today
@@ -150,36 +150,11 @@ class TelegramBot:
                     formatted.append(result)
         return formatted
 
-    # async def process_excel_file(self, path: str, source: str) -> List[str]:
-    #     lines = []
-    #     wb = openpyxl.load_workbook(path)
-    #     ws = wb.active
-    #     for row in ws.iter_rows(min_row=2, values_only=True):
-    #         emails = []
-    #         non_emails = []
-    #         for cell in row[:5]:
-    #             if cell:
-    #                 text = str(cell).strip()
-    #                 if '@' in text and '.' in text:
-    #                     emails.append(text)
-    #                 else:
-    #                     non_emails.append(text)
-    #         if emails:
-    #             email = emails[0]
-    #             recovery = emails[1] if len(emails) > 1 else ''
-    #             password = non_emails[0] if non_emails else 'aass1122'
-    #             line = f"{email}|{password}"
-    #             if recovery:
-    #                 line += f"|{recovery}"
-    #             line += f"|SOURCE_{source}_SOURCE"
-    #             lines.append(line)
-    #     return lines
     async def process_excel_file(self, path: str, source: str) -> List[str]:
         lines = []
         wb = openpyxl.load_workbook(path)
         ws = wb.active
-
-        for row in ws.iter_rows(values_only=True):  # duyệt tất cả các dòng
+        for row in ws.iter_rows(min_row=1, values_only=True):
             emails = []
             non_emails = []
             for cell in row[:5]:
@@ -199,6 +174,31 @@ class TelegramBot:
                 line += f"|SOURCE_{source}_SOURCE"
                 lines.append(line)
         return lines
+    # async def process_excel_file(self, path: str, source: str) -> List[str]:
+    #     lines = []
+    #     wb = openpyxl.load_workbook(path)
+    #     ws = wb.active
+
+    #     for row in ws.iter_rows(values_only=True):  # duyệt tất cả các dòng
+    #         emails = []
+    #         non_emails = []
+    #         for cell in row[:5]:
+    #             if cell:
+    #                 text = str(cell).strip()
+    #                 if '@' in text and '.' in text:
+    #                     emails.append(text)
+    #                 else:
+    #                     non_emails.append(text)
+    #         if emails:
+    #             email = emails[0]
+    #             recovery = emails[1] if len(emails) > 1 else ''
+    #             password = non_emails[0] if non_emails else 'aass1122'
+    #             line = f"{email}|{password}"
+    #             if recovery:
+    #                 line += f"|{recovery}"
+    #             line += f"|SOURCE_{source}_SOURCE"
+    #             lines.append(line)
+    #     return lines
 
 
 async def main():
